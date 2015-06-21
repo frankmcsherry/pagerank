@@ -134,6 +134,7 @@ where C: Communicator {
     let mut going = start;
 
     let graph = GraphMMap::new(&filename);
+    let nodes = graph.nodes();
 
     let mut segments = SegmentList::new(1024); // list of edge segments
 
@@ -164,7 +165,7 @@ where C: Communicator {
                 if iter.inner == 0 {
                     // println!("received edges in {}s", time::precise_time_s() - start);
                     // (deg, rev, trn) = transpose(srcs, dsts, peers);
-                    let (a, b, c) = transpose(segments.finalize(), peers, graph.nodes());
+                    let (a, b, c) = transpose(segments.finalize(), peers, nodes);
                     deg = a;
                     rev = b;
                     trn = c;
