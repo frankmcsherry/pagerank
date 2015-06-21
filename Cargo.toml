@@ -1,0 +1,15 @@
+[package]
+name = "pagerank"
+version = "0.1.0"
+authors = ["Frank McSherry <fmcsherry@me.com>"]
+
+[dependencies.timely]
+# git="https://github.com/frankmcsherry/timely-dataflow"
+path="../timely-dataflow"
+
+[dependencies]
+docopt="*"
+columnar="*"
+time = "*"
+mmap="*"
+# timely="*"
