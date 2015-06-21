@@ -217,11 +217,14 @@ where C: Communicator {
             for dst in graph.edges(node) {
                 edges.push((node as u32, *dst as u32));
             }
+            if edges.len() > 1024 {
+                input.send_at(0, edges.drain_temp());
+                root.step();
+            }
         }
     }
 
-    // feed in some data
-    input.send_at(0, edges.into_iter());
+    input.send_at(0, edges.drain_temp());
     input.close();
     while root.step() { }
 
