@@ -89,12 +89,9 @@ where C: Communicator+Send {
 }
 
 // returns [src/peers] degrees, (dst, deg) pairs, and a list of [src/peers] endpoints
-fn transpose(mut edges: Vec<Vec<(u32, u32)>>, peers: usize) -> (Vec<u32>, Vec<(u32, u32)>, Vec<u32>)  {
+fn transpose(mut edges: Vec<Vec<(u32, u32)>>, peers: usize, nodes: usize) -> (Vec<u32>, Vec<(u32, u32)>, Vec<u32>)  {
 
-    let mut m = 0;
-    for list in &edges { for &(s,_) in list { m = std::cmp::max(m, s); } }
-
-    let mut deg = vec![0; (m as usize / peers) + 1];
+    let mut deg = vec![0; (nodes as usize / peers) + 1];
     for list in &edges {
         for &(s, _) in list {
             deg[s as usize / peers] += 1;
@@ -136,6 +133,8 @@ where C: Communicator {
     let start = time::precise_time_s();
     let mut going = start;
 
+    let graph = GraphMMap::new(&filename);
+
     let mut segments = SegmentList::new(1024); // list of edge segments
 
     let mut src = vec![];   // holds ranks
@@ -165,7 +164,7 @@ where C: Communicator {
                 if iter.inner == 0 {
                     // println!("received edges in {}s", time::precise_time_s() - start);
                     // (deg, rev, trn) = transpose(srcs, dsts, peers);
-                    let (a, b, c) = transpose(segments.finalize(), peers);
+                    let (a, b, c) = transpose(segments.finalize(), peers, graph.nodes());
                     deg = a;
                     rev = b;
                     trn = c;
@@ -209,7 +208,6 @@ where C: Communicator {
         input
     });
 
-    let graph = GraphMMap::new(&filename);
 
     let mut edges = Vec::new();
     for node in 0..graph.nodes() {
