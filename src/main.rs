@@ -209,14 +209,14 @@ where C: Communicator {
                 if index == 0 { println!("iter: {} took {}s", iter.inner, time::precise_time_s() - iter_start); }
             }
 
+            let start = time::precise_time_s();
             while let Some((iter, data)) = input2.pull() {
-                let start = time::precise_time_s();
                 notificator.notify_at(&iter);
                 for x in data.drain_temp() {
                     src[x.node as usize / peers] += x.rank;
                 }
-                accounted += time::precise_time_s() - start;
             }
+            accounted += time::precise_time_s() - start;
         })
         .connect_loop(cycle);
 
