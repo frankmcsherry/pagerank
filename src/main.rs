@@ -137,7 +137,6 @@ where C: Communicator {
     let mut root = GraphRoot::new(communicator);
 
     let start = time::precise_time_s();
-    let mut going = start;
 
     let nodes = GraphMMap::new(&filename).nodes();
 
@@ -147,9 +146,6 @@ where C: Communicator {
     let mut deg = vec![];   // holds source degrees
     let mut rev = vec![];   // holds (dst, deg) pairs
     let mut trn = vec![];   // holds transposed sources
-
-    let mut accounted = 0.0;
-    let mut accounted_inner = 0.0;
 
     let mut input = root.subcomputation(|builder| {
 
@@ -169,23 +165,15 @@ where C: Communicator {
             }
 
             while let Some((iter, _)) = notificator.next() {
+
                 // if the very first iteration, prepare some stuff
                 if iter.inner == 0 {
-                    // println!("received edges in {}s", time::precise_time_s() - start);
-                    // (deg, rev, trn) = transpose(srcs, dsts, peers);
                     let (a, b, c) = transpose(segments.finalize(), peers, nodes);
-                    deg = a;
-                    rev = b;
-                    trn = c;
+                    deg = a; rev = b; trn = c;
                     src = vec![0.0f32; deg.len()];
-                    if index == 0 { println!("transformed; {} x {} shape", deg.len(), rev.len()); }
                 }
 
-                if iter.inner == 10 { going = time::precise_time_s(); }
-                if iter.inner == 20 && index == 0 { println!("avg: {}", (time::precise_time_s() - going) / 10.0);
-                    println!("rcv: {}, {}", accounted_inner / 20.0, accounted / 20.0); }
-
-                let iter_start = time::precise_time_s();
+                println!("{}\tworker {}: notify[{}] begin", time::precise_time_s() - start, index, iter.inner);
 
                 for s in 0..src.len() { src[s] = 0.15 + 0.85 * src[s] / deg[s] as f32; }
 
@@ -208,19 +196,15 @@ where C: Communicator {
 
                 for s in &mut src { *s = 0.0; }
 
-                if index == 0 { println!("iter: {} took {}s", iter.inner, time::precise_time_s() - iter_start); }
+                println!("{}\tworker {}: notify[{}] ended", time::precise_time_s() - start, index, iter.inner);
             }
 
-            let start = time::precise_time_s();
             while let Some((iter, data)) = input2.pull() {
-                let start_inner = time::precise_time_s();
                 notificator.notify_at(&iter);
                 for x in data.drain_temp() {
                     src[x.node as usize / peers] += x.rank;
                 }
-                accounted_inner += time::precise_time_s() -start_inner;
             }
-            accounted += time::precise_time_s() - start;
         })
         .connect_loop(cycle);
 
