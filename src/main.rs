@@ -21,6 +21,8 @@ use timely::networking::initialize_networking_from_file;
 
 use timely::drain::DrainExt;
 
+use columnar::Columnar;
+
 mod typedrw;
 mod graphmap;
 use graphmap::GraphMMap;
@@ -37,6 +39,10 @@ Options:
     -n <arg>, --processes <arg>  number of processes involved  [default: 1]
     -h <arg>, --hosts <arg>      file containing list of host:port for workers
 ";
+
+#[derive(Copy, Clone, Debug)]
+struct NodeRank { node: u32, rank: f32, }
+impl Columnar for NodeRank { type Stack = Vec<NodeRank>; }
 
 fn main () {
     let args = Docopt::new(USAGE).and_then(|dopt| dopt.parse()).unwrap_or_else(|e| e.exit());
@@ -133,8 +139,7 @@ where C: Communicator {
     let start = time::precise_time_s();
     let mut going = start;
 
-    let graph = GraphMMap::new(&filename);
-    let nodes = graph.nodes();
+    let nodes = GraphMMap::new(&filename).nodes();
 
     let mut segments = SegmentList::new(1024); // list of edge segments
 
@@ -146,11 +151,11 @@ where C: Communicator {
     let mut input = root.subcomputation(|builder| {
 
         let (input, edges) = builder.new_input::<(u32, u32)>();
-        let (cycle, ranks) = builder.loop_variable::<(u32, f32)>(RootTimestamp::new(20), Local(1));
+        let (cycle, ranks) = builder.loop_variable::<NodeRank>(RootTimestamp::new(20), Local(1));
 
         edges.binary_notify(&ranks,
                             Exchange::new(|x: &(u32,u32)| x.0 as u64),
-                            Exchange::new(|x: &(u32,f32)| x.0 as u64),
+                            Exchange::new(|x: &NodeRank| x.node as u64),
                             format!("pagerank"),
                             vec![RootTimestamp::new(0)],
                             move |input1, input2, output, notificator| {
@@ -192,7 +197,7 @@ where C: Communicator {
                             accum += src[s as usize];
                         }
                         trn_slice = &trn_slice[deg as usize..];
-                        session.give((dst, accum));
+                        session.give(NodeRank { node: dst, rank: accum });
                     }
                     rev_slice = &rev_slice[next..];
                 }
@@ -204,8 +209,8 @@ where C: Communicator {
 
             while let Some((iter, data)) = input2.pull() {
                 notificator.notify_at(&iter);
-                for (node, rank) in data.drain_temp() {
-                    src[node as usize / peers] += rank;
+                for x in data.drain_temp() {
+                    src[x.node as usize / peers] += x.rank;
                 }
             }
         })
@@ -215,20 +220,25 @@ where C: Communicator {
     });
 
 
-    let mut edges = Vec::new();
-    for node in 0..graph.nodes() {
-        if node % peers == index {
-            for dst in graph.edges(node) {
-                edges.push((node as u32, *dst as u32));
-            }
-            if edges.len() > 1024 {
-                input.send_at(0, edges.drain_temp());
-                root.step();
+    {
+        let graph = GraphMMap::new(&filename);
+
+        let mut edges = Vec::new();
+        for node in 0..graph.nodes() {
+            if node % peers == index {
+                for dst in graph.edges(node) {
+                    edges.push((node as u32, *dst as u32));
+                }
+                if edges.len() > 1024 {
+                    input.send_at(0, edges.drain_temp());
+                    root.step();
+                }
             }
         }
-    }
 
-    input.send_at(0, edges.drain_temp());
+
+        input.send_at(0, edges.drain_temp());
+    }
     input.close();
     while root.step() { }
 
