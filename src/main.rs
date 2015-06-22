@@ -149,6 +149,7 @@ where C: Communicator {
     let mut trn = vec![];   // holds transposed sources
 
     let mut accounted = 0.0;
+    let mut accounted_inner = 0.0;
 
     let mut input = root.subcomputation(|builder| {
 
@@ -181,7 +182,8 @@ where C: Communicator {
                 }
 
                 if iter.inner == 10 { going = time::precise_time_s(); }
-                if iter.inner == 20 && index == 0 { println!("avg: {}", (time::precise_time_s() - going) / 10.0); println!("rcv: {}", accounted / 20.0); }
+                if iter.inner == 20 && index == 0 { println!("avg: {}", (time::precise_time_s() - going) / 10.0);
+                    println!("rcv: {}, {}", accounted_inner / 20.0, accounted / 20.0); }
 
                 let iter_start = time::precise_time_s();
 
@@ -211,10 +213,12 @@ where C: Communicator {
 
             let start = time::precise_time_s();
             while let Some((iter, data)) = input2.pull() {
+                let start_inner = time::precise_time_s();
                 notificator.notify_at(&iter);
                 for x in data.drain_temp() {
                     src[x.node as usize / peers] += x.rank;
                 }
+                accounted_inner += time::precise_time_s() -start_inner;
             }
             accounted += time::precise_time_s() - start;
         })
