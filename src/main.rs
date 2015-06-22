@@ -176,6 +176,8 @@ where C: Communicator {
                 if iter.inner == 10 { going = time::precise_time_s(); }
                 if iter.inner == 20 && index == 0 { println!("avg: {}", (time::precise_time_s() - going) / 10.0); }
 
+                let iter_start = time::precise_time_s();
+
                 for s in 0..src.len() { src[s] = 0.15 + 0.85 * src[s] / deg[s] as f32; }
 
                 let mut trn_slice = &trn[..];
@@ -196,6 +198,8 @@ where C: Communicator {
                 }
 
                 for s in &mut src { *s = 0.0; }
+
+                if index == 0 { println!("iter: {} took {}s", iter.inner, time::precise_time_s() - iter_start); }
             }
 
             while let Some((iter, data)) = input2.pull() {
