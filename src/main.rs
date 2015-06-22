@@ -170,6 +170,7 @@ where C: Communicator {
                     rev = b;
                     trn = c;
                     src = vec![0.0f32; deg.len()];
+                    if index == 0 { println!("transformed; {} x {} shape", deg.len(), rev.len()); }
                 }
 
                 if iter.inner == 10 { going = time::precise_time_s(); }
