@@ -173,7 +173,7 @@ where C: Communicator {
                     src = vec![0.0f32; deg.len()];
                 }
 
-                println!("{}\tworker {}: notify[{}] begin", time::precise_time_s() - start, index, iter.inner);
+                println!("{:.3}\tworker {}: notify[{}] begin", time::precise_time_s() - start, index, iter.inner);
 
                 for s in 0..src.len() { src[s] = 0.15 + 0.85 * src[s] / deg[s] as f32; }
 
@@ -196,7 +196,7 @@ where C: Communicator {
 
                 for s in &mut src { *s = 0.0; }
 
-                println!("{}\tworker {}: notify[{}] ended", time::precise_time_s() - start, index, iter.inner);
+                println!("{:.3}\tworker {}: notify[{}] ended", time::precise_time_s() - start, index, iter.inner);
             }
 
             while let Some((iter, data)) = input2.pull() {
