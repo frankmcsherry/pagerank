@@ -147,6 +147,8 @@ where C: Communicator {
     let mut rev = vec![];   // holds (dst, deg) pairs
     let mut trn = vec![];   // holds transposed sources
 
+    let mut going = start;
+
     let mut input = root.subcomputation(|builder| {
 
         let (input, edges) = builder.new_input::<(u32, u32)>();
@@ -173,7 +175,10 @@ where C: Communicator {
                     src = vec![0.0f32; deg.len()];
                 }
 
-                println!("{:.3}\tworker {}: notify[{}] begin", time::precise_time_s() - start, index, iter.inner);
+                if iter.inner == 10 && index == 0 { going = time::precise_time_s(); }
+                if iter.inner == 20 && index == 0 { println!("avg: {}", time::precise_time_s() - going); }
+
+                // println!("{:.3}\tworker {}: notify[{}] begin", time::precise_time_s() - start, index, iter.inner);
 
                 for s in 0..src.len() { src[s] = 0.15 + 0.85 * src[s] / deg[s] as f32; }
 
@@ -196,7 +201,7 @@ where C: Communicator {
 
                 for s in &mut src { *s = 0.0; }
 
-                println!("{:.3}\tworker {}: notify[{}] ended", time::precise_time_s() - start, index, iter.inner);
+                // println!("{:.3}\tworker {}: notify[{}] ended", time::precise_time_s() - start, index, iter.inner);
             }
 
             while let Some((iter, data)) = input2.pull() {
