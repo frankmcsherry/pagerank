@@ -182,7 +182,7 @@ where C: Communicator {
                 while rev_slice.len() > 0 {
                     // TODO: session should just flush...
                     let mut session = output.session(&iter);
-                    let next = std::cmp::min(100_000, rev_slice.len());
+                    let next = std::cmp::min(200_000, rev_slice.len());
                     for &(dst, deg) in &rev_slice[..next] {
                         let mut accum = 0.0;
                         for &s in &trn_slice[..deg as usize] {
