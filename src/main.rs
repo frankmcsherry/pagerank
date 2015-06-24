@@ -176,9 +176,7 @@ where C: Communicator {
                 }
 
                 if iter.inner == 10 && index == 0 { going = time::precise_time_s(); }
-                if iter.inner == 20 && index == 0 { println!("avg: {}", (time::precise_time_s() - going) / 10.0 ); }
-
-                // println!("{:.3}\tworker {}: notify[{}] begin", time::precise_time_s() - start, index, iter.inner);
+                if iter.inner == 20 && index == 0 { println!("average: {}", (time::precise_time_s() - going) / 10.0 ); }
 
                 for s in 0..src.len() { src[s] = 0.15 + 0.85 * src[s] / deg[s] as f32; }
 
@@ -200,8 +198,6 @@ where C: Communicator {
                 }
 
                 for s in &mut src { *s = 0.0; }
-
-                // println!("{:.3}\tworker {}: notify[{}] ended", time::precise_time_s() - start, index, iter.inner);
             }
 
             while let Some((iter, data)) = input2.pull() {
