@@ -176,7 +176,7 @@ where C: Communicator {
                 }
 
                 if iter.inner == 10 && index == 0 { going = time::precise_time_s(); }
-                if iter.inner == 20 && index == 0 { println!("avg: {}", time::precise_time_s() - going); }
+                if iter.inner == 20 && index == 0 { println!("avg: {}", (time::precise_time_s() - going) / 10.0 ); }
 
                 // println!("{:.3}\tworker {}: notify[{}] begin", time::precise_time_s() - start, index, iter.inner);
 
