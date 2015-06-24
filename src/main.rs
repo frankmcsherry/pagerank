@@ -181,7 +181,7 @@ where C: Communicator {
                 let mut rev_slice = &rev[..];
                 while rev_slice.len() > 0 {
                     // TODO: session should just flush...
-                    // let mut session = output.session(&iter);
+                    let mut session = output.session(&iter);
                     let next = std::cmp::min(200_000, rev_slice.len());
                     for &(dst, deg) in &rev_slice[..next] {
                         let mut accum = 0.0;
@@ -189,7 +189,7 @@ where C: Communicator {
                             accum += src[s as usize];
                         }
                         trn_slice = &trn_slice[deg as usize..];
-                        // session.give(NodeRank { node: dst, rank: accum });
+                        session.give(NodeRank { node: dst, rank: accum });
                     }
                     rev_slice = &rev_slice[next..];
                 }
