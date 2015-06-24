@@ -189,7 +189,7 @@ where C: Communicator {
                             accum += src[s as usize];
                         }
                         trn_slice = &trn_slice[deg as usize..];
-                        session.give(NodeRank { node: dst, rank: accum });
+                        // session.give(NodeRank { node: dst, rank: accum });
                     }
                     rev_slice = &rev_slice[next..];
                 }
