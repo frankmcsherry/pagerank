@@ -6,7 +6,9 @@ extern crate docopt;
 
 use docopt::Docopt;
 
+use std::fs::File;
 use std::thread;
+use std::io::{Read, BufRead, BufReader};
 
 use timely::progress::timestamp::RootTimestamp;
 use timely::progress::scope::Scope;
@@ -17,7 +19,6 @@ use timely::communication::*;
 use timely::communication::pact::Exchange;
 
 use timely::networking::initialize_networking;
-use timely::networking::initialize_networking_from_file;
 
 use timely::drain::DrainExt;
 
@@ -66,13 +67,17 @@ fn main () {
         println!("Initializing BinaryCommunicator");
 
         let hosts = args.get_str("-h");
-        let communicators = if hosts != "" {
-            initialize_networking_from_file(hosts, process_id, workers).ok().expect("error initializing networking")
+        let addresses: Vec<_> = if hosts != "" {
+            let reader = BufReader::new(File::open(hosts).unwrap());
+            reader.lines().take(processes as usize).map(|x| x.unwrap()).collect()
         }
         else {
-            let addresses = (0..processes).map(|index| format!("localhost:{}", 2101 + index).to_string()).collect();
-            initialize_networking(addresses, process_id, workers).ok().expect("error initializing networking")
+            (0..processes).map(|index| format!("localhost:{}", 2101 + index).to_string()).collect()
         };
+
+        if addresses.len() != processes as usize { panic!("only {} hosts for -p: {}", addresses.len(), processes); }
+
+        let communicators = initialize_networking(addresses, process_id, workers).ok().expect("error initializing networking");
 
         pagerank_spawn(communicators, source);
     }
@@ -104,9 +109,7 @@ fn transpose(mut edges: Vec<Vec<(u32, u32)>>, peers: usize, nodes: usize) -> (Ve
         }
     }
 
-    // let start = time::precise_time_s();
     radix_sort_32(&mut edges, &mut Vec::new(), &|&(_,d)| d);
-    // println!("sorted in {}s", time::precise_time_s() - start);
 
     let mut rev = Vec::<(u32,u32)>::with_capacity(deg.len());
     let mut trn = Vec::with_capacity(edges.len() * 1024);
@@ -161,29 +164,34 @@ where C: Communicator {
                             vec![RootTimestamp::new(0)],
                             move |input1, input2, output, notificator| {
 
-            // receive incoming edges
+            // receive incoming edges (should only be iter 0)
             while let Some((_index, data)) = input1.pull() {
                 segments.push(data.drain_temp());
             }
 
+            // all inputs received for iter, commence multiplication
             while let Some((iter, _)) = notificator.next() {
 
-                // if the very first iteration, prepare some stuff
+                // if the very first iteration, prepare some stuff.
+                // specifically, transpose edges and sort by destination.
                 if iter.inner == 0 {
                     let (a, b, c) = transpose(segments.finalize(), peers, nodes);
                     deg = a; rev = b; trn = c;
                     src = vec![0.0f32; deg.len()];
                 }
 
+                // record some timings in order to estimate per-iteration times
                 if iter.inner == 10 && index == 0 { going = time::precise_time_s(); }
                 if iter.inner == 20 && index == 0 { println!("average: {}", (time::precise_time_s() - going) / 10.0 ); }
 
+                // prepare src for transmitting to destinations
                 for s in 0..src.len() { src[s] = 0.15 + 0.85 * src[s] / deg[s] as f32; }
 
+                // wander through destinations
                 let mut trn_slice = &trn[..];
                 let mut rev_slice = &rev[..];
                 while rev_slice.len() > 0 {
-                    // TODO: session should just flush...
+                    // TODO: session should flush automatically...
                     let mut session = output.session(&iter);
                     let next = std::cmp::min(200_000, rev_slice.len());
                     for &(dst, deg) in &rev_slice[..next] {
@@ -197,9 +205,11 @@ where C: Communicator {
                     rev_slice = &rev_slice[next..];
                 }
 
+                // clean out src to accumulate into
                 for s in &mut src { *s = 0.0; }
             }
 
+            // receive data from workers, accumulate in src
             while let Some((iter, data)) = input2.pull() {
                 notificator.notify_at(&iter);
                 for x in data.drain_temp() {
