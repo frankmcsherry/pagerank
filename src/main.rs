@@ -202,7 +202,7 @@ where C: Communicator {
             while let Some((iter, data)) = input2.pull() {
                 notificator.notify_at(&iter);
                 for x in data.drain_temp() {
-                    src[x.node as usize / 64] += x.rank;
+                    src[x.node as usize / peers] += x.rank;
                 }
             }
         })
@@ -221,7 +221,7 @@ where C: Communicator {
                 for dst in graph.edges(node) {
                     edges.push((node as u32, *dst as u32));
                 }
-                if edges.len() > 1024 {
+                if edges.len() > 100_000 {
                     input.send_at(0, edges.drain_temp());
                     root.step();
                 }
