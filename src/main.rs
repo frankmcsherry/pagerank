@@ -202,7 +202,7 @@ where C: Communicator {
             while let Some((iter, data)) = input2.pull() {
                 notificator.notify_at(&iter);
                 for x in data.drain_temp() {
-                    src[x.node as usize / peers] += x.rank;
+                    src[x.node as usize / 64] += x.rank;
                 }
             }
         })
