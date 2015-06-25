@@ -128,7 +128,7 @@ pub fn radix_shuf<V: Copy+Default, F: Fn(&V)->u8>(data: &mut Vec<Vec<V>>, free: 
                 for v in &temp[(buflen * key) .. ((buflen * key) + buflen)] { part[key].push(*v); }
 
                 if part[key].len() == 1024 {
-                    full[key].push(mem::replace(&mut part[key], free.pop().unwrap()));
+                    full[key].push(mem::replace(&mut part[key], free.pop().unwrap_or(Vec::new())));
                 }
 
                 counts[key] = 0;
