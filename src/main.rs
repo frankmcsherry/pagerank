@@ -22,8 +22,6 @@ use timely::networking::initialize_networking;
 
 use timely::drain::DrainExt;
 
-use columnar::Columnar;
-
 mod typedrw;
 mod graphmap;
 use graphmap::GraphMMap;
@@ -40,10 +38,6 @@ Options:
     -n <arg>, --processes <arg>  number of processes involved  [default: 1]
     -h <arg>, --hosts <arg>      file containing list of host:port for workers
 ";
-
-#[derive(Copy, Clone, Debug)]
-struct NodeRank { node: u32, rank: f32, }
-impl Columnar for NodeRank { type Stack = Vec<NodeRank>; }
 
 fn main () {
     let args = Docopt::new(USAGE).and_then(|dopt| dopt.parse()).unwrap_or_else(|e| e.exit());
@@ -155,11 +149,11 @@ where C: Communicator {
     let mut input = root.subcomputation(|builder| {
 
         let (input, edges) = builder.new_input::<(u32, u32)>();
-        let (cycle, ranks) = builder.loop_variable::<NodeRank>(RootTimestamp::new(20), Local(1));
+        let (cycle, ranks) = builder.loop_variable::<(u32, f32)>(RootTimestamp::new(20), Local(1));
 
-        edges.binary_notify(&ranks,
+        let ranks = edges.binary_notify(&ranks,
                             Exchange::new(|x: &(u32,u32)| x.0 as u64),
-                            Exchange::new(|x: &NodeRank| x.node as u64),
+                            Exchange::new(|x: &(u32,f32)| x.0 as u64),
                             format!("pagerank"),
                             vec![RootTimestamp::new(0)],
                             move |input1, input2, output, notificator| {
@@ -181,6 +175,7 @@ where C: Communicator {
                 }
 
                 // record some timings in order to estimate per-iteration times
+                if iter.inner == 0  && index == 0 { println!("src: {}, dst: {}, edges: {}", src.len(), rev.len(), trn.len()); }
                 if iter.inner == 10 && index == 0 { going = time::precise_time_s(); }
                 if iter.inner == 20 && index == 0 { println!("average: {}", (time::precise_time_s() - going) / 10.0 ); }
 
@@ -200,7 +195,7 @@ where C: Communicator {
                             accum += src[s as usize];
                         }
                         trn_slice = &trn_slice[deg as usize..];
-                        session.give(NodeRank { node: dst, rank: accum });
+                        session.give((dst, accum));
                     }
                     rev_slice = &rev_slice[next..];
                 }
@@ -213,16 +208,43 @@ where C: Communicator {
             while let Some((iter, data)) = input2.pull() {
                 notificator.notify_at(&iter);
                 for x in data.drain_temp() {
-                    src[x.node as usize / peers] += x.rank;
+                    src[x.0 as usize / peers] += x.1;
                 }
             }
-        })
-        .connect_loop(cycle);
+        });
+
+        // // optionally, do process-local accumulation
+        // let local_base = _workers * (index / _workers);
+        // let local_index = index % _workers;
+        // let mut acc = vec![0.0; (nodes / _workers) + 1];   // holds ranks
+        // let ranks = ranks.unary_notify(
+        //     Exchange::new(move |x: &(u32,f32)| (local_base as u64 + (x.0 as u64 % _workers as u64))),
+        //     format!("Aggregation"),
+        //     vec![],
+        //     move |input, output, iterator| {
+        //         while let Some((iter, data)) = input.pull() {
+        //             iterator.notify_at(&iter);
+        //             for x in data.drain_temp() {
+        //                 acc[x.0 as usize / _workers] += x.rank;
+        //             }
+        //         }
+        //
+        //         while let Some((item, _)) = iterator.next() {
+        //             output.give_at(&item, acc.drain_temp().enumerate().filter(|x| x.1 != 0.0)
+        //                                      .map(|(u,f)| ((u * _workers + local_index) as u32, f)));
+        //
+        //             for _ in 0..(1 + (nodes/_workers)) { acc.push(0.0); }
+        //         }
+        //     }
+        // );
+
+        ranks.connect_loop(cycle);
 
         input
     });
 
-
+    // introduce edges into the computation;
+    // allow mmaped file to drop
     {
         let graph = GraphMMap::new(&filename);
 
@@ -239,7 +261,6 @@ where C: Communicator {
             }
         }
 
-
         input.send_at(0, edges.drain_temp());
     }
     input.close();
@@ -247,28 +268,3 @@ where C: Communicator {
 
     if index == 0 { println!("elapsed: {}", time::precise_time_s() - start); }
 }
-
-
-
-    // .unary_notify(
-    //     Exchange::new(move |x: &(u32, f32)| (workers * (index / workers)) as u64 + (x.0 as u64 % workers as u64)),
-    //     format!("Aggregation"),
-    //     vec![],
-    //     move |input, output, iterator| {
-    //         while let Some((iter, data)) = input.pull() {
-    //             iterator.notify_at(&iter);
-    //             for (node, rank) in data.drain_temp() {
-    //                 acc[node as usize / workers] += rank;
-    //             }
-    //         }
-    //
-    //         while let Some((item, _)) = iterator.next() {
-    //
-    //             output.give_at(&item, acc.drain_temp().enumerate().filter(|x| x.1 != 0.0)
-    //                                      .map(|(u,f)| (((u * workers + local_index) as u32), f)));
-    //
-    //             for _ in 0..(1 + (nodes/workers)) { acc.push(0.0); }
-    //             assert!(acc.len() == (1 + (nodes/workers)));
-    //         }
-    //     }
-    // )
