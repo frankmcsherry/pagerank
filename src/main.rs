@@ -212,30 +212,30 @@ where C: Communicator {
             }
         });
 
-        // optionally, do process-local accumulation
-        let local_base = _workers * (index / _workers);
-        let local_index = index % _workers;
-        let mut acc = vec![0.0; (nodes / _workers) + 1];   // holds ranks
-        let ranks = ranks.unary_notify(
-            Exchange::new(move |x: &(u32,f32)| (local_base as u64 + (x.0 as u64 % _workers as u64))),
-            format!("Aggregation"),
-            vec![],
-            move |input, output, iterator| {
-                while let Some((iter, data)) = input.pull() {
-                    iterator.notify_at(&iter);
-                    for x in data.drain_temp() {
-                        acc[x.0 as usize / _workers] += x.1;
-                    }
-                }
-
-                while let Some((item, _)) = iterator.next() {
-                    output.give_at(&item, acc.drain_temp().enumerate().filter(|x| x.1 != 0.0)
-                                             .map(|(u,f)| ((u * _workers + local_index) as u32, f)));
-
-                    for _ in 0..(1 + (nodes/_workers)) { acc.push(0.0); }
-                }
-            }
-        );
+        // // optionally, do process-local accumulation
+        // let local_base = _workers * (index / _workers);
+        // let local_index = index % _workers;
+        // let mut acc = vec![0.0; (nodes / _workers) + 1];   // holds ranks
+        // let ranks = ranks.unary_notify(
+        //     Exchange::new(move |x: &(u32,f32)| (local_base as u64 + (x.0 as u64 % _workers as u64))),
+        //     format!("Aggregation"),
+        //     vec![],
+        //     move |input, output, iterator| {
+        //         while let Some((iter, data)) = input.pull() {
+        //             iterator.notify_at(&iter);
+        //             for x in data.drain_temp() {
+        //                 acc[x.0 as usize / _workers] += x.1;
+        //             }
+        //         }
+        //
+        //         while let Some((item, _)) = iterator.next() {
+        //             output.give_at(&item, acc.drain_temp().enumerate().filter(|x| x.1 != 0.0)
+        //                                      .map(|(u,f)| ((u * _workers + local_index) as u32, f)));
+        //
+        //             for _ in 0..(1 + (nodes/_workers)) { acc.push(0.0); }
+        //         }
+        //     }
+        // );
 
         ranks.connect_loop(cycle);
 
