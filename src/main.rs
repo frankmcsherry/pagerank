@@ -165,6 +165,10 @@ where C: Communicator {
             // all inputs received for iter, commence multiplication
             while let Some((iter, _)) = notificator.next() {
 
+                let now = time::now();
+
+                if index == 0 { println!("{}:{}:{}.{} starting iteration {}", now.tm_hour, now.tm_min, now.tm_sec, now.tm_nsec, iter.inner); }
+
                 // if the very first iteration, prepare some stuff.
                 // specifically, transpose edges and sort by destination.
                 if iter.inner == 0 {
