@@ -32,16 +32,23 @@ static USAGE: &'static str = "
 Usage: pagerank <source> [options] [<arguments>...]
 
 Options:
-    -w <arg>, --workers <arg>    number of workers per process [default: 1]
-    -p <arg>, --processid <arg>  identity of this process      [default: 0]
-    -n <arg>, --processes <arg>  number of processes involved  [default: 1]
-    -h <arg>, --hosts <arg>      file containing list of host:port for workers
+    -a <arg>, --aggregation <arg>  the aggregation strategy, \"worker\" or \"process\" [default: worker]
+    -h <arg>, --hosts <arg>        file with list of host:port for workers
+    -n <arg>, --processes <arg>    number of processes involved  [default: 1]
+    -p <arg>, --processid <arg>    identity of this process      [default: 0]
+    -w <arg>, --workers <arg>      number of workers per process [default: 1]
 ";
 
 fn main () {
     let args = Docopt::new(USAGE).and_then(|dopt| dopt.parse()).unwrap_or_else(|e| e.exit());
 
     let source = args.get_str("<source>").to_owned();
+
+    let agg_strategy = args.get_str("-a").to_owned();
+
+    if agg_strategy != "process" && agg_strategy != "worker" {
+        panic!("invalid setting for --aggregation: {}", args.get_str("-a"));
+    }
 
     let workers: u64 = if let Ok(threads) = args.get_str("-w").parse() { threads }
                        else { panic!("invalid setting for --workers: {}", args.get_str("-t")) };
@@ -54,6 +61,7 @@ fn main () {
     println!("\tworkers:\t{}", workers);
     println!("\tprocesses:\t{}", processes);
     println!("\tprocessid:\t{}", process_id);
+    println!("\taggregation:\t{}", agg_strategy);
 
     // vector holding communicators to use; one per local worker.
     if processes > 1 {
@@ -72,20 +80,21 @@ fn main () {
 
         let communicators = initialize_networking(addresses, process_id, workers).ok().expect("error initializing networking");
 
-        pagerank_spawn(communicators, source);
+        pagerank_spawn(communicators, source, agg_strategy);
     }
-    else if workers > 1 { pagerank_spawn(ProcessCommunicator::new_vector(workers), source); }
-    else { pagerank_spawn(vec![ThreadCommunicator], source); };
+    else if workers > 1 { pagerank_spawn(ProcessCommunicator::new_vector(workers), source, agg_strategy); }
+    else { pagerank_spawn(vec![ThreadCommunicator], source, agg_strategy); };
 }
 
-fn pagerank_spawn<C>(communicators: Vec<C>, filename: String)
+fn pagerank_spawn<C>(communicators: Vec<C>, filename: String, agg_strategy: String)
 where C: Communicator+Send {
     let mut guards = Vec::new();
     let workers = communicators.len();
+    let process_agg = agg_strategy == "process";
     for communicator in communicators.into_iter() {
         let filename = filename.clone();
         guards.push(thread::Builder::new().name(format!("timely worker {}", communicator.index()))
-                                          .spawn(move || pagerank_thread(communicator, filename, workers))
+                                          .spawn(move || pagerank_thread(communicator, filename, workers, process_agg))
                                           .unwrap());
     }
 
@@ -125,7 +134,7 @@ fn transpose(mut edges: Vec<Vec<(u32, u32)>>, peers: usize, nodes: usize) -> (Ve
 // pagerank dataflow graph has a set of edges as input, and a binary vertex that for each epoch of
 // received edges initiates an iterative subcomputation to compute the pagerank.
 
-fn pagerank_thread<C>(communicator: C, filename: String, _workers: usize)
+fn pagerank_thread<C>(communicator: C, filename: String, _workers: usize, _process_aggregate: bool)
 where C: Communicator {
     let index = communicator.index() as usize;
     let peers = communicator.peers() as usize;
@@ -216,30 +225,32 @@ where C: Communicator {
             }
         });
 
-        // // optionally, do process-local accumulation
-        // let local_base = _workers * (index / _workers);
-        // let local_index = index % _workers;
-        // let mut acc = vec![0.0; (nodes / _workers) + 1];   // holds ranks
-        // let ranks = ranks.unary_notify(
-        //     Exchange::new(move |x: &(u32,f32)| (local_base as u64 + (x.0 as u64 % _workers as u64))),
-        //     format!("Aggregation"),
-        //     vec![],
-        //     move |input, output, iterator| {
-        //         while let Some((iter, data)) = input.pull() {
-        //             iterator.notify_at(&iter);
-        //             for x in data.drain_temp() {
-        //                 acc[x.0 as usize / _workers] += x.1;
-        //             }
-        //         }
-        //
-        //         while let Some((item, _)) = iterator.next() {
-        //             output.give_at(&item, acc.drain_temp().enumerate().filter(|x| x.1 != 0.0)
-        //                                      .map(|(u,f)| ((u * _workers + local_index) as u32, f)));
-        //
-        //             for _ in 0..(1 + (nodes/_workers)) { acc.push(0.0); }
-        //         }
-        //     }
-        // );
+        // optionally, do process-local accumulation
+        if _process_aggregate {
+            let local_base = _workers * (index / _workers);
+            let local_index = index % _workers;
+            let mut acc = vec![0.0; (nodes / _workers) + 1];   // holds ranks
+            let ranks = ranks.unary_notify(
+                Exchange::new(move |x: &(u32,f32)| (local_base as u64 + (x.0 as u64 % _workers as u64))),
+                format!("Aggregation"),
+                vec![],
+                move |input, output, iterator| {
+                    while let Some((iter, data)) = input.pull() {
+                        iterator.notify_at(&iter);
+                        for x in data.drain_temp() {
+                            acc[x.0 as usize / _workers] += x.1;
+                        }
+                    }
+            
+                    while let Some((item, _)) = iterator.next() {
+                        output.give_at(&item, acc.drain_temp().enumerate().filter(|x| x.1 != 0.0)
+                                                 .map(|(u,f)| ((u * _workers + local_index) as u32, f)));
+            
+                        for _ in 0..(1 + (nodes/_workers)) { acc.push(0.0); }
+                    }
+                }
+            );
+        }
 
         ranks.connect_loop(cycle);
 
