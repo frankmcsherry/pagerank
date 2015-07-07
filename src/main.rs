@@ -159,7 +159,7 @@ where C: Communicator {
         let (input, edges) = builder.new_input::<(u32, u32)>();
         let (cycle, ranks) = builder.loop_variable::<(u32, f32)>(RootTimestamp::new(20), Local(1));
 
-        let ranks = edges.binary_notify(&ranks,
+        let mut ranks = edges.binary_notify(&ranks,
                             Exchange::new(|x: &(u32,u32)| x.0 as u64),
                             Exchange::new(|x: &(u32,f32)| x.0 as u64),
                             format!("pagerank"),
@@ -230,7 +230,7 @@ where C: Communicator {
             let local_base = _workers * (index / _workers);
             let local_index = index % _workers;
             let mut acc = vec![0.0; (nodes / _workers) + 1];   // holds ranks
-            let ranks = ranks.unary_notify(
+            ranks = ranks.unary_notify(
                 Exchange::new(move |x: &(u32,f32)| (local_base as u64 + (x.0 as u64 % _workers as u64))),
                 format!("Aggregation"),
                 vec![],
@@ -241,11 +241,11 @@ where C: Communicator {
                             acc[x.0 as usize / _workers] += x.1;
                         }
                     }
-            
+
                     while let Some((item, _)) = iterator.next() {
                         output.give_at(&item, acc.drain_temp().enumerate().filter(|x| x.1 != 0.0)
                                                  .map(|(u,f)| ((u * _workers + local_index) as u32, f)));
-            
+
                         for _ in 0..(1 + (nodes/_workers)) { acc.push(0.0); }
                     }
                 }
