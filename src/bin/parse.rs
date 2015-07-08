@@ -12,14 +12,10 @@ Usage: digest <source> <target>
 
 fn main() {
     let args = Docopt::new(USAGE).and_then(|dopt| dopt.parse()).unwrap_or_else(|e| e.exit());
-
-    println!("digest will overwrite <target>.targets and <target>.offsets, so careful");
-    println!("at least, it will once you edit the code to uncomment the line.");
     let source = args.get_str("<source>");
     let _target = args.get_str("<target>");
     let graph = read_edges(&source);
-    _digest_graph_vector(&_extract_fragment(graph.iter().map(|x| *x), 0, 1), _target); // will overwrite "prefix.offsets" and "prefix.targets"
-
+    _digest_graph_vector(&_extract_fragment(graph.iter().map(|x| *x)), _target);
 }
 
 // loads the read_edges file available at https://snap.stanford.edu/data/soc-LiveJournal1.html
@@ -29,7 +25,7 @@ fn read_edges(filename: &str) -> Vec<(u32, u32)> {
     for readline in file.lines() {
         let line = readline.ok().expect("read error");
         if !line.starts_with('#') {
-            let elts: Vec<&str> = line[..].split("\t").collect();
+            let elts: Vec<&str> = line[..].split(" ").collect();
             let src: u32 = elts[0].parse().ok().expect("malformed src");
             let dst: u32 = elts[1].parse().ok().expect("malformed dst");
             graph.push((src, dst))
@@ -40,18 +36,16 @@ fn read_edges(filename: &str) -> Vec<(u32, u32)> {
     return graph;
 }
 
-fn _extract_fragment<I: Iterator<Item=(u32, u32)>>(graph: I, index: u64, parts: u64) -> (Vec<u32>, Vec<u32>) {
+fn _extract_fragment<I: Iterator<Item=(u32, u32)>>(graph: I) -> (Vec<u64>, Vec<u32>) {
     let mut nodes = Vec::new();
     let mut edges = Vec::new();
 
     for (src, dst) in graph {
-        if src as u64 % parts == index {
-            while src + 1 >= nodes.len() as u32 { nodes.push(0); }
-            while dst + 1 >= nodes.len() as u32 { nodes.push(0); } // allows unsafe access to nodes
+        while src + 1 >= nodes.len() as u32 { nodes.push(0); }
+        while dst + 1 >= nodes.len() as u32 { nodes.push(0); } // allows unsafe access to nodes
 
-            nodes[src as usize + 1] += 1;
-            edges.push(dst);
-        }
+        nodes[src as usize + 1] += 1;
+        edges.push(dst);
     }
 
     for index in (1..nodes.len()) {
@@ -61,7 +55,7 @@ fn _extract_fragment<I: Iterator<Item=(u32, u32)>>(graph: I, index: u64, parts: 
     return (nodes, edges);
 }
 
-fn _digest_graph_vector(graph: &(Vec<u32>, Vec<u32>), output_prefix: &str) {
+fn _digest_graph_vector(graph: &(Vec<u64>, Vec<u32>), output_prefix: &str) {
     let mut edge_writer = BufWriter::new(File::create(format!("{}.targets", output_prefix)).unwrap());
     let mut node_writer = BufWriter::new(File::create(format!("{}.offsets", output_prefix)).unwrap());
     node_writer.write_all(unsafe { _typed_as_byte_slice(&graph.0[..]) }).unwrap();
