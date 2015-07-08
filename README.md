@@ -23,6 +23,9 @@ which can be the used as inputs to the `pagerank` binary.
 to a different delimiter by editing `src/bin/parse.rs`. For a small example
 data set that works out of the box, use the
 [LiveJournal graph](https://snap.stanford.edu/data/soc-LiveJournal1.txt.gz).
+A single-threaded iteration on this graph takes about 0.67s on a 2013 MacBook
+Air.
+
 Our [blog](http://www.frankmcsherry.org/pagerank/distributed/performance/2015/07/08/pagerank.html)
 [posts](http://camsas.org/blog/2015-07-08-timely-pagerank-part1.html) have links
 to the larger `twitter_rv` and `uk_2007_05` data sets.
