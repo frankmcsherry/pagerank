@@ -19,6 +19,14 @@ $ cargo run --release --bin parse -- my-edgelist.txt my-graph
 This will generate binary files `my-graph.offsets` and `my-graph.targets`,
 which can be the used as inputs to the `pagerank` binary.
 
+`parse` assumes that the inputs are in tab-seperated text, but you can change
+to a different delimiter by editing `src/bin/parse.rs`. For a small example
+data set that works out of the box, use the
+[LiveJournal graph](https://snap.stanford.edu/data/soc-LiveJournal1.txt.gz).
+Our [blog](http://www.frankmcsherry.org/pagerank/distributed/performance/2015/07/08/pagerank.html)
+[posts](http://camsas.org/blog/2015-07-08-timely-pagerank-part1.html) have links
+to the larger `twitter_rv` and `uk_2007_05` data sets.
+
 ## Running PageRank
 To run on inputs `my-graph.offsets` and `my-graph.targets`, run:
 ```
@@ -43,9 +51,10 @@ The inputs must already be present in the working directory on all hosts.
 
 ## Context
 
-We have written a [blog post]() about the development of this implementation;
-there, we also compare it against the widely used [GraphX system](https://spark.apache.org/graphx/)
-for Apache Spark.
+We have written [blog](http://www.frankmcsherry.org/pagerank/distributed/performance/2015/07/08/pagerank.html)
+[posts](http://camsas.org/blog/2015-07-08-timely-pagerank-part1.html) about the
+development of this implementation; there, we also compare it against the widely
+used [GraphX system](https://spark.apache.org/graphx/) for Apache Spark.
 
 To learn more about timely dataflow in Rust, you might be interested in the
 following blog posts, too:
