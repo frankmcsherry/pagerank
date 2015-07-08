@@ -8,8 +8,6 @@ git="https://github.com/frankmcsherry/timely-dataflow"
 # path="../timely-dataflow"
 
 [dependencies]
-docopt="*"
-columnar="*"
+getopts="*"
 time = "*"
 mmap="*"
-# timely="*"

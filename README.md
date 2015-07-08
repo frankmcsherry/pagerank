@@ -4,7 +4,7 @@ This repository contains an implementation of the PageRank algorithm in timely
 dataflow, implemented in Rust. By default, it runs 20 PageRank iterations and
 then prints some statistics.
 
-To run, clone the repo, prepare the inputs and run. We assume that you have a 
+To run, clone the repo, prepare the inputs and run. We assume that you have a
 working Rust installation, and that your input graph is in text-based edge list
 format.
 
@@ -30,17 +30,20 @@ to the larger `twitter_rv` and `uk_2007_05` data sets.
 ## Running PageRank
 To run on inputs `my-graph.offsets` and `my-graph.targets`, run:
 ```
-$ cargo run --release --bin pagerank -- my-graph [options]
+$ cargo run --release --bin pagerank -- my-graph worker [options]
 ```
+The `worker` argument indicates you would like worker-level aggregation.
+You can alternately use `process` for process-level aggregation.
+
 Without any options, the code runs single-threadedly. The `-w` option can be
 used to set the number of threads to use; `-h`,`-n` and `-p` can be used to
 run distributedly:
 ```
 $ cat hosts.txt
-hostname0
-hostname1
-hostname2
-hostname3
+hostname0:port
+hostname1:port
+hostname2:port
+hostname3:port
 
 hostname0$ cargo run --release --bin pagerank -- my-graph -h hosts.txt -n 4 -p 0
 hostname1$ cargo run --release --bin pagerank -- my-graph -h hosts.txt -n 4 -p 1

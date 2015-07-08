@@ -1,21 +1,19 @@
-extern crate docopt;
-use docopt::Docopt;
+// extern crate docopt;
+// use docopt::Docopt;
 
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::fs::File;
 use std::slice;
 use std::mem;
 
-static USAGE: &'static str = "
-Usage: digest <source> <target>
-";
-
 fn main() {
-    let args = Docopt::new(USAGE).and_then(|dopt| dopt.parse()).unwrap_or_else(|e| e.exit());
-    let source = args.get_str("<source>");
-    let _target = args.get_str("<target>");
+    println!("usage: parse <source> <target>");
+    println!("will overwrite <target>.offsets and <target>.targets");
+    let source = std::env::args().skip(1).next().unwrap();
+    let target = std::env::args().skip(2).next().unwrap();
+
     let graph = read_edges(&source);
-    _digest_graph_vector(&_extract_fragment(graph.iter().map(|x| *x)), _target);
+    digest_graph_vector(&_extract_fragment(graph.iter().map(|x| *x)), &target);
 }
 
 // loads the read_edges file available at https://snap.stanford.edu/data/soc-LiveJournal1.html
@@ -55,7 +53,7 @@ fn _extract_fragment<I: Iterator<Item=(u32, u32)>>(graph: I) -> (Vec<u64>, Vec<u
     return (nodes, edges);
 }
 
-fn _digest_graph_vector(graph: &(Vec<u64>, Vec<u32>), output_prefix: &str) {
+fn digest_graph_vector(graph: &(Vec<u64>, Vec<u32>), output_prefix: &str) {
     let mut edge_writer = BufWriter::new(File::create(format!("{}.targets", output_prefix)).unwrap());
     let mut node_writer = BufWriter::new(File::create(format!("{}.offsets", output_prefix)).unwrap());
     node_writer.write_all(unsafe { _typed_as_byte_slice(&graph.0[..]) }).unwrap();

@@ -1,104 +1,46 @@
 extern crate mmap;
 extern crate time;
 extern crate timely;
-extern crate docopt;
-
-use docopt::Docopt;
-
-use std::fs::File;
-use std::thread;
-use std::io::{Read, BufRead, BufReader};
+extern crate getopts;
 
 use timely::progress::timestamp::RootTimestamp;
-use timely::progress::scope::Scope;
 use timely::progress::nested::Summary::Local;
 use timely::example_shared::*;
 use timely::example_shared::operators::*;
 use timely::communication::*;
 use timely::communication::pact::Exchange;
-
-use timely::networking::initialize_networking;
-
 use timely::drain::DrainExt;
 
 mod typedrw;
 mod graphmap;
-use graphmap::GraphMMap;
-
 mod sorting;
+use graphmap::GraphMMap;
 use sorting::{SegmentList, radix_sort_32};
 
-static USAGE: &'static str = "
-Usage: pagerank <source> [options] [<arguments>...]
-
-Options:
-    -a <arg>, --aggregation <arg>  the aggregation strategy, \"worker\" or \"process\" [default: worker]
-    -h <arg>, --hosts <arg>        file with list of host:port for workers
-    -n <arg>, --processes <arg>    number of processes involved  [default: 1]
-    -p <arg>, --processid <arg>    identity of this process      [default: 0]
-    -w <arg>, --workers <arg>      number of workers per process [default: 1]
-";
-
 fn main () {
-    let args = Docopt::new(USAGE).and_then(|dopt| dopt.parse()).unwrap_or_else(|e| e.exit());
 
-    let source = args.get_str("<source>").to_owned();
+    let source = std::env::args().skip(1).next().unwrap();
+    let strategy = std::env::args().skip(2).next().unwrap() == "process";
 
-    let agg_strategy = args.get_str("-a").to_owned();
+    // currently need timely's full option set to parse args
+    let mut opts = getopts::Options::new();
+    opts.optopt("w", "workers", "", "");
+    opts.optopt("p", "process", "", "");
+    opts.optopt("n", "processes", "", "");
+    opts.optopt("h", "hostfile", "", "");
 
-    if agg_strategy != "process" && agg_strategy != "worker" {
-        panic!("invalid setting for --aggregation: {}", args.get_str("-a"));
+    if let Ok(matches) = opts.parse(std::env::args().skip(3)) {
+
+        let workers: usize = matches.opt_str("w").map(|x| x.parse().unwrap_or(1)).unwrap_or(1);
+
+        timely::initialize(std::env::args().skip(2), move |communicator| {
+            pagerank_thread(communicator, &source, workers, strategy);
+        });
     }
-
-    let workers: u64 = if let Ok(threads) = args.get_str("-w").parse() { threads }
-                       else { panic!("invalid setting for --workers: {}", args.get_str("-t")) };
-    let process_id: u64 = if let Ok(proc_id) = args.get_str("-p").parse() { proc_id }
-                          else { panic!("invalid setting for --processid: {}", args.get_str("-p")) };
-    let processes: u64 = if let Ok(processes) = args.get_str("-n").parse() { processes }
-                         else { panic!("invalid setting for --processes: {}", args.get_str("-n")) };
-
-    println!("Starting pagerank dataflow with");
-    println!("\tworkers:\t{}", workers);
-    println!("\tprocesses:\t{}", processes);
-    println!("\tprocessid:\t{}", process_id);
-    println!("\taggregation:\t{}", agg_strategy);
-
-    // vector holding communicators to use; one per local worker.
-    if processes > 1 {
-        println!("Initializing BinaryCommunicator");
-
-        let hosts = args.get_str("-h");
-        let addresses: Vec<_> = if hosts != "" {
-            let reader = BufReader::new(File::open(hosts).unwrap());
-            reader.lines().take(processes as usize).map(|x| x.unwrap()).collect()
-        }
-        else {
-            (0..processes).map(|index| format!("localhost:{}", 2101 + index).to_string()).collect()
-        };
-
-        if addresses.len() != processes as usize { panic!("only {} hosts for -p: {}", addresses.len(), processes); }
-
-        let communicators = initialize_networking(addresses, process_id, workers).ok().expect("error initializing networking");
-
-        pagerank_spawn(communicators, source, agg_strategy);
+    else {
+        println!("error parsing arguments");
+        println!("usage:\tpagerank <source> (worker|process) [timely options]");
     }
-    else if workers > 1 { pagerank_spawn(ProcessCommunicator::new_vector(workers), source, agg_strategy); }
-    else { pagerank_spawn(vec![ThreadCommunicator], source, agg_strategy); };
-}
-
-fn pagerank_spawn<C>(communicators: Vec<C>, filename: String, agg_strategy: String)
-where C: Communicator+Send {
-    let mut guards = Vec::new();
-    let workers = communicators.len();
-    let process_agg = agg_strategy == "process";
-    for communicator in communicators.into_iter() {
-        let filename = filename.clone();
-        guards.push(thread::Builder::new().name(format!("timely worker {}", communicator.index()))
-                                          .spawn(move || pagerank_thread(communicator, filename, workers, process_agg))
-                                          .unwrap());
-    }
-
-    for guard in guards { guard.join().unwrap(); }
 }
 
 // returns [src/peers] degrees, (dst, deg) pairs, and a list of [src/peers] endpoints
@@ -134,7 +76,7 @@ fn transpose(mut edges: Vec<Vec<(u32, u32)>>, peers: usize, nodes: usize) -> (Ve
 // pagerank dataflow graph has a set of edges as input, and a binary vertex that for each epoch of
 // received edges initiates an iterative subcomputation to compute the pagerank.
 
-fn pagerank_thread<C>(communicator: C, filename: String, _workers: usize, _process_aggregate: bool)
+fn pagerank_thread<C>(communicator: C, filename: &String, _workers: usize, _process_aggregate: bool)
 where C: Communicator {
     let index = communicator.index() as usize;
     let peers = communicator.peers() as usize;
