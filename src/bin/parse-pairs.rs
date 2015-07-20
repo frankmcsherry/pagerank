@@ -4,16 +4,13 @@ use std::slice;
 use std::mem;
 
 fn main() {
-    println!("usage: parse-pairs <source> <target>");
-    println!("will overwrite <target>.pairs");
-    let source = std::env::args().skip(1).next().unwrap();
-    let target = std::env::args().skip(2).next().unwrap();
 
-    let file = BufReader::new(File::open(source).unwrap());
-    let mut writer = BufWriter::new(File::create(format!("{}.pairs", target)).unwrap());
+    let stdin = std::io::stdin();
+    let reader = stdin.lock();
+    let mut writer = std::io::stdout();
 
     let mut pairs = vec![0u32; 2];
-    for readline in file.lines() {
+    for readline in reader.lines() {
         let line = readline.ok().expect("read error");
         if !line.starts_with('#') {
             let elts: Vec<&str> = line[..].split("\t").collect();
