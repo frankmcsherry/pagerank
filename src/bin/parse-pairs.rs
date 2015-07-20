@@ -33,6 +33,7 @@ fn main() {
 
         let mut bytes = vec![0u8; 1024];
         while let Ok(edges) = read_as_typed::<_,(u32,u32)>(&mut reader, &mut bytes) {
+            if edges.len() == 0 { break; }
             for &(src,dst) in edges {
                 println!("{} {}", src,dst);
             }
