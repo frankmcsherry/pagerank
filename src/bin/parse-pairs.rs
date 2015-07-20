@@ -1,5 +1,4 @@
-use std::io::{Read, BufRead, BufReader, BufWriter, Write, Result};
-use std::fs::File;
+use std::io::{Read, BufRead, Write, Result};
 use std::slice;
 use std::mem;
 
@@ -8,7 +7,7 @@ fn main() {
     let parse_mode = match std::env::args().skip(1).next().as_ref().map(|x| &x[..]) {
         Some("parse") => true,
         Some("print") => false,
-        _ => panic!("parse_mode not one of print or parse"),
+        _ => panic!("usage: parse_pairs (parse | print)"),
     };
 
     let stdin = std::io::stdin();
