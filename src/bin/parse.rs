@@ -1,6 +1,3 @@
-// extern crate docopt;
-// use docopt::Docopt;
-
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::fs::File;
 use std::slice;
