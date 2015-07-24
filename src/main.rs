@@ -172,7 +172,7 @@ where C: Communicator {
             while let Some((iter, data)) = input2.pull() {
                 notificator.notify_at(&iter);
                 for x in data.drain_temp() {
-                    src[x.0 as usize / peers] += x.1;
+                    src[x.0 as usize / 128] += x.1;
                 }
             }
         });
