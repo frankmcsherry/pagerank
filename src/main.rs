@@ -138,21 +138,31 @@ where C: Communicator {
 
                 // wander through destinations
                 let mut trn_slice = &trn[..];
-                let mut rev_slice = &rev[..];
-                while rev_slice.len() > 0 {
-                    // TODO: session should flush automatically...
-                    let mut session = output.session(&iter);
-                    let next = std::cmp::min(200_000, rev_slice.len());
-                    for &(dst, deg) in &rev_slice[..next] {
-                        let mut accum = 0.0;
-                        for &s in &trn_slice[..deg as usize] {
-                            accum += src[s as usize];
-                        }
-                        trn_slice = &trn_slice[deg as usize..];
-                        session.give((dst, accum));
+                let mut session = output.session(&iter);
+                for &(dst, deg) in &rev {
+                    let mut accum = 0.0;
+                    for &s in &trn_slice[..deg as usize] {
+                        accum += src[s as usize];
                     }
-                    rev_slice = &rev_slice[next..];
+                    trn_slice = &trn_slice[deg as usize..];
+                    session.give((dst, accum));
                 }
+
+                // let mut rev_slice = &rev[..];
+                // while rev_slice.len() > 0 {
+                //     // TODO: session should flush automatically...
+                //     let mut session = output.session(&iter);
+                //     let next = std::cmp::min(200_000, rev_slice.len());
+                //     for &(dst, deg) in &rev_slice[..next] {
+                //         let mut accum = 0.0;
+                //         for &s in &trn_slice[..deg as usize] {
+                //             accum += src[s as usize];
+                //         }
+                //         trn_slice = &trn_slice[deg as usize..];
+                //         session.give((dst, accum));
+                //     }
+                //     rev_slice = &rev_slice[next..];
+                // }
 
                 // clean out src to accumulate into
                 for s in &mut src { *s = 0.0; }
