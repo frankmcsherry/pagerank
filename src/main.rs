@@ -9,7 +9,6 @@ use timely::construction::*;
 use timely::construction::operators::*;
 use timely::communication::*;
 use timely::communication::pact::Exchange;
-use timely::communication::observer::Extensions;
 use timely::drain::DrainExt;
 
 mod typedrw;
@@ -134,8 +133,11 @@ fn main () {
                             }
 
                             while let Some((item, _)) = iterator.next() {
-                                output.give_at(&item, acc.drain_temp().enumerate().filter(|x| x.1 != 0.0)
-                                                         .map(|(u,f)| ((u * workers + local_index) as u32, f)));
+                                output.session(&item)
+                                      .give_iterator(acc.drain_temp()
+                                                        .enumerate()
+                                                        .filter(|x| x.1 != 0.0)
+                                                        .map(|(u,f)| ((u * workers + local_index) as u32, f)));
 
                                 for _ in 0..(1 + (nodes/workers)) { acc.push(0.0); }
                             }
@@ -201,9 +203,3 @@ fn transpose(mut edges: Vec<Vec<(u32, u32)>>, peers: usize, nodes: usize) -> (Ve
 
     return (deg, rev, trn);
 }
-
-// pagerank dataflow graph has a set of edges as input, and a binary vertex that for each epoch of
-// received edges initiates an iterative subcomputation to compute the pagerank.
-//
-// fn pagerank_thread<C>(communicator: C, filename: &String, _workers: usize, _process_aggregate: bool)
-// where C: Communicator {
