@@ -5,10 +5,10 @@ extern crate getopts;
 
 use timely::progress::timestamp::RootTimestamp;
 use timely::progress::nested::Summary::Local;
-use timely::construction::*;
-use timely::construction::operators::*;
-use timely::communication::*;
-use timely::communication::pact::Exchange;
+use timely::dataflow::*;
+use timely::dataflow::operators::*;
+// use timely::communication::*;
+use timely::dataflow::channels::pact::Exchange;
 use timely::drain::DrainExt;
 
 mod typedrw;
@@ -33,7 +33,7 @@ fn main () {
 
         let workers: usize = matches.opt_str("w").map(|x| x.parse().unwrap_or(1)).unwrap_or(1);
 
-        timely::execute(std::env::args().skip(2), move |root| {
+        timely::execute_from_args(std::env::args().skip(2), move |root| {
 
             let index = root.index() as usize;
             let peers = root.peers() as usize;
@@ -51,7 +51,7 @@ fn main () {
 
             let mut going = start;
 
-            let mut input = root.subcomputation(|builder| {
+            let mut input = root.scoped(|builder| {
 
                 let (input, edges) = builder.new_input::<(u32, u32)>();
                 let (cycle, ranks) = builder.loop_variable::<(u32, f32)>(RootTimestamp::new(20), Local(1));
@@ -64,7 +64,7 @@ fn main () {
                                     move |input1, input2, output, notificator| {
 
                     // receive incoming edges (should only be iter 0)
-                    while let Some((_index, data)) = input1.pull() {
+                    while let Some((_index, data)) = input1.next() {
                         segments.push(data.drain_temp());
                     }
 
@@ -107,7 +107,7 @@ fn main () {
                     }
 
                     // receive data from workers, accumulate in src
-                    while let Some((iter, data)) = input2.pull() {
+                    while let Some((iter, data)) = input2.next() {
                         notificator.notify_at(&iter);
                         for &(node, rank) in data.iter() {
                             src[node as usize / peers] += rank;
@@ -125,7 +125,7 @@ fn main () {
                         "aggregation",
                         vec![],
                         move |input, output, iterator| {
-                            while let Some((iter, data)) = input.pull() {
+                            while let Some((iter, data)) = input.next() {
                                 iterator.notify_at(&iter);
                                 for &(node, rank) in data.iter() {
                                     acc[node as usize / workers] += rank;
@@ -157,7 +157,7 @@ fn main () {
                 for node in 0..graph.nodes() {
                     if node % peers == index {
                         for dst in graph.edges(node) {
-                            input.give((node as u32, *dst as u32));
+                            input.send((node as u32, *dst as u32));
                         }
                     }
                 }
