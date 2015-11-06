@@ -4,7 +4,7 @@ extern crate timely;
 extern crate getopts;
 
 use timely::progress::timestamp::RootTimestamp;
-use timely::progress::nested::Summary::Local;
+// use timely::progress::nested::Summary::Local;
 use timely::dataflow::*;
 use timely::dataflow::operators::*;
 // use timely::communication::*;
@@ -54,7 +54,7 @@ fn main () {
             let mut input = root.scoped(|builder| {
 
                 let (input, edges) = builder.new_input::<(u32, u32)>();
-                let (cycle, ranks) = builder.loop_variable::<(u32, f32)>(RootTimestamp::new(20), Local(1));
+                let (cycle, ranks) = builder.loop_variable::<(u32, f32)>(20, 1);
 
                 let mut ranks = edges.binary_notify(&ranks,
                                     Exchange::new(|x: &(u32,u32)| x.0 as u64),
