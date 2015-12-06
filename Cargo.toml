@@ -1,15 +1,23 @@
+
 [package]
 name = "pagerank"
 version = "0.1.0"
 authors = ["Frank McSherry <fmcsherry@me.com>"]
 
 [dependencies.timely]
-git = "https://github.com/frankmcsherry/timely-dataflow.git"
-# branch = "comm-rewrite"
-# path="../timely-dataflow"
+# git = "https://github.com/frankmcsherry/timely-dataflow.git"
+path="../timely-dataflow"
 
 [dependencies]
 getopts="*"
 time = "*"
 mmap="*"
+rand="*"
 byteorder="*"
+
+[profile.release]
+opt-level = 3
+debug = true
+rpath = false
+lto = false
+debug-assertions = false

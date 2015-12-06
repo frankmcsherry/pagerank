@@ -97,7 +97,8 @@ fn main () {
                         for &(dst, deg) in &rev {
                             let mut accum = 0.0;
                             for &s in &trn_slice[..deg as usize] {
-                                accum += src[s as usize];
+                                // accum += src[s as usize];
+                                unsafe { accum += *src.get_unchecked(s as usize); }
                             }
                             trn_slice = &trn_slice[deg as usize..];
                             session.give((dst, accum));
