@@ -14,7 +14,7 @@ The input format for our PageRank implementation is a binary-packed adjacency
 list for a graph. You can use the `parse` binary to transform an ASCII/UTF-8
 edge list into this format:
 ```
-$ cargo run --release --bin parse -- my-edgelist.txt my-graph
+$ cargo run --release --bin parse -- my-graph < my-edgelist.txt
 ```
 This will generate binary files `my-graph.offsets` and `my-graph.targets`,
 which can be the used as inputs to the `pagerank` binary.
