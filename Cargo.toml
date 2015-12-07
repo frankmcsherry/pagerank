@@ -5,8 +5,8 @@ version = "0.1.0"
 authors = ["Frank McSherry <fmcsherry@me.com>"]
 
 [dependencies.timely]
-# git = "https://github.com/frankmcsherry/timely-dataflow.git"
-path="../timely-dataflow"
+git = "https://github.com/frankmcsherry/timely-dataflow.git"
+# path="../timely-dataflow"
 
 [dependencies]
 getopts="*"
