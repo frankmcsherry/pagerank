@@ -25,7 +25,7 @@ fn main () {
         let start = time::precise_time_s();
 
         let mut edges = Vec::new();
-        let mut ranks = vec![1.0; node_cnt];   // holds ranks
+        let mut ranks = vec![1.0; (node_cnt / peers) + 1];   // holds ranks
         if (node_cnt % peers) < index { ranks.push(1.0); }
         let mut degrs = vec![0; ranks.len()];
 
