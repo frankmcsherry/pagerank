@@ -46,7 +46,7 @@ fn main () {
                 // receive incoming edges (should only be iter 0)
                 while let Some((_index, data)) = input1.next() {
                     for (src,dst) in data.drain_temp() {
-                        degrs[src as usize] += 1;
+                        degrs[src as usize / peers] += 1;
                         edges.push((src / (peers as u32),dst));
                     }
                 }
