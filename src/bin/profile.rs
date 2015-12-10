@@ -1,8 +1,6 @@
 extern crate rand;
-extern crate mmap;
 extern crate time;
 extern crate timely;
-extern crate getopts;
 
 use rand::{Rng, SeedableRng, StdRng};
 
@@ -86,7 +84,7 @@ fn main () {
         });
 
 
-        let seed: &[_] = &[1, 2, 3, 4];
+        let seed: &[_] = &[1, 2, 3, index];
         let mut rng: StdRng = SeedableRng::from_seed(seed);
 
         for _index in 0..(edge_cnt / peers) {
