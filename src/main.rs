@@ -84,7 +84,7 @@ fn main () {
                         }
 
                         // record some timings in order to estimate per-iteration times
-                        if iter.inner == 0  && index == 0 { println!("src: {}, dst: {}, edges: {}", src.len(), rev.len(), trn.len()); }
+                        if iter.inner == 0  { println!("src: {}, dst: {}, edges: {}", src.len(), rev.len(), trn.len()); }
                         if iter.inner == 10 && index == 0 { going = time::precise_time_s(); }
                         if iter.inner == 20 && index == 0 { println!("average: {}", (time::precise_time_s() - going) / 10.0 ); }
 
