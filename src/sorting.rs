@@ -1,5 +1,4 @@
 use std::mem;
-use timely::drain::DrainExt;
 
 pub struct SegmentList<T> {
     size:     usize,
@@ -50,8 +49,8 @@ pub fn radix_shuf<V: Copy+Default, F: Fn(&V)->u8>(data: &mut Vec<Vec<V>>, free: 
     let mut counts = vec![0u8; 256];
 
     // loop through each buffer
-    for mut vs in data.drain_temp() {
-        for v in vs.drain_temp() {
+    for mut vs in data.drain(..) {
+        for v in vs.drain(..) {
             let key = func(&v) as usize;
 
             temp[buflen * key + counts[key] as usize] = v;
@@ -72,7 +71,7 @@ pub fn radix_shuf<V: Copy+Default, F: Fn(&V)->u8>(data: &mut Vec<Vec<V>>, free: 
     }
 
     // check each partially filled buffer
-    for (key, mut p) in part.drain_temp().enumerate() {
+    for (key, mut p) in part.drain(..).enumerate() {
         for v in &temp[(buflen * key) .. ((buflen * key) + counts[key] as usize)] { p.push(*v); }
 
         if p.len() > 0 { full[key].push(p); }
@@ -80,7 +79,7 @@ pub fn radix_shuf<V: Copy+Default, F: Fn(&V)->u8>(data: &mut Vec<Vec<V>>, free: 
     }
 
     // re-order buffers
-    for mut cs in full.drain_temp() {
-        for c in cs.drain_temp() { data.push(c); }
+    for mut cs in full.drain(..) {
+        for c in cs.drain(..) { data.push(c); }
     }
 }

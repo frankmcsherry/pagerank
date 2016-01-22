@@ -4,12 +4,9 @@ extern crate timely;
 extern crate getopts;
 
 use timely::progress::timestamp::RootTimestamp;
-// use timely::progress::nested::Summary::Local;
 use timely::dataflow::*;
 use timely::dataflow::operators::*;
-// use timely::communication::*;
 use timely::dataflow::channels::pact::Exchange;
-use timely::drain::DrainExt;
 
 mod typedrw;
 mod graphmap;
@@ -65,7 +62,7 @@ fn main () {
 
                     // receive incoming edges (should only be iter 0)
                     while let Some((_index, data)) = input1.next() {
-                        segments.push(data.drain_temp());
+                        segments.push(data.drain(..));
                     }
 
                     // all inputs received for iter, commence multiplication
@@ -135,7 +132,7 @@ fn main () {
 
                             while let Some((item, _)) = iterator.next() {
                                 output.session(&item)
-                                      .give_iterator(acc.drain_temp()
+                                      .give_iterator(acc.drain(..)
                                                         .enumerate()
                                                         .filter(|x| x.1 != 0.0)
                                                         .map(|(u,f)| ((u * workers + local_index) as u32, f)));

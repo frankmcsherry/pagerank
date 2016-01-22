@@ -8,7 +8,6 @@ use timely::progress::timestamp::RootTimestamp;
 use timely::dataflow::*;
 use timely::dataflow::operators::*;
 use timely::dataflow::channels::pact::Exchange;
-use timely::drain::DrainExt;
 
 fn main () {
 
@@ -43,7 +42,7 @@ fn main () {
 
                 // receive incoming edges (should only be iter 0)
                 while let Some((_index, data)) = input1.next() {
-                    for (src,dst) in data.drain_temp() {
+                    for (src,dst) in data.drain(..) {
                         degrs[src as usize / peers] += 1;
                         edges.push((src / (peers as u32),dst));
                     }

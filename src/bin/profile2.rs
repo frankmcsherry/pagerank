@@ -1,7 +1,8 @@
+
 extern crate rand;
 extern crate time;
 extern crate timely;
-extern crate radix_sort;
+extern crate timely_sort;
 
 use rand::{Rng, SeedableRng, StdRng};
 
@@ -9,9 +10,8 @@ use timely::progress::timestamp::RootTimestamp;
 use timely::dataflow::*;
 use timely::dataflow::operators::*;
 use timely::dataflow::channels::pact::Exchange;
-use timely::drain::DrainExt;
 
-use radix_sort::{RadixSorter, Unsigned};
+use timely_sort::LSBRadixSorter as RadixSorter;
 
 fn main () {
 
@@ -49,7 +49,7 @@ fn main () {
 
                 // receive incoming edges (should only be iter 0)
                 while let Some((_index, data)) = input1.next() {
-                    for (src,dst) in data.drain_temp() {
+                    for (src,dst) in data.drain(..) {
                         sorter.push((src,dst), &|&(_,d)| d);
                     }
                 }
