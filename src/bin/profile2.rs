@@ -48,14 +48,14 @@ fn main () {
                                 move |input1, input2, output, notificator| {
 
                 // receive incoming edges (should only be iter 0)
-                while let Some((_index, data)) = input1.next() {
+                input1.for_each(|_iter, data| {
                     for (src,dst) in data.drain(..) {
                         sorter.push((src,dst), &|&(_,d)| d);
                     }
-                }
+                });
 
                 // all inputs received for iter, commence multiplication
-                while let Some((iter, _)) = notificator.next() {
+                notificator.for_each(|iter,_| {
 
                     let now = time::now();
 
@@ -93,15 +93,15 @@ fn main () {
                     }
 
                     for s in &mut src { *s = 0.0; }
-                }
+                });
 
                 // receive data from workers, accumulate in src
-                while let Some((iter, data)) = input2.next() {
-                    notificator.notify_at(&iter);
+                input2.for_each(|iter, data| {
+                    notificator.notify_at(iter);
                     for &(node, rank) in data.iter() {
                         src[node as usize / peers] += rank;
                     }
-                }
+                });
             }).connect_loop(cycle);
 
             input
@@ -113,7 +113,7 @@ fn main () {
         for _index in 0..(edge_cnt / peers) {
             input.send((rng.gen_range(0, node_cnt as u32), rng.gen_range(0, node_cnt as u32)));
         }
-    });
+    }).unwrap();
 }
 
 // returns [src/peers] degrees, (dst, deg) pairs, and a list of [src/peers] endpoints

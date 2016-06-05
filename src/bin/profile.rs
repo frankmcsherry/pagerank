@@ -41,12 +41,12 @@ fn main () {
                                 move |input1, input2, output, notificator| {
 
                 // receive incoming edges (should only be iter 0)
-                while let Some((_index, data)) = input1.next() {
+                input1.for_each(|_iter, data| {
                     for (src,dst) in data.drain(..) {
                         degrs[src as usize / peers] += 1;
                         edges.push((src / (peers as u32),dst));
                     }
-                }
+                });
 
                 // all inputs received for iter, commence multiplication
                 while let Some((iter, _)) = notificator.next() {
@@ -71,12 +71,12 @@ fn main () {
                 }
 
                 // receive data from workers, accumulate in src
-                while let Some((iter, data)) = input2.next() {
-                    notificator.notify_at(&iter);
+                input2.for_each(|iter, data| {
+                    notificator.notify_at(iter);
                     for &(node, rank) in data.iter() {
                         unsafe { *ranks.get_unchecked_mut(node as usize / peers) += rank; }
                     }
-                }
+                });
             }).connect_loop(cycle);
 
             input
@@ -89,5 +89,5 @@ fn main () {
         for _index in 0..(edge_cnt / peers) {
             input.send((rng.gen_range(0, node_cnt as u32), rng.gen_range(0, node_cnt as u32)));
         }
-    }); 
+    }).unwrap(); 
 }

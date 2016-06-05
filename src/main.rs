@@ -61,12 +61,12 @@ fn main () {
                                     move |input1, input2, output, notificator| {
 
                     // receive incoming edges (should only be iter 0)
-                    while let Some((_index, data)) = input1.next() {
+                    input1.for_each(|_iter, data| {
                         segments.push(data.drain(..));
-                    }
+                    });
 
                     // all inputs received for iter, commence multiplication
-                    while let Some((iter, _)) = notificator.next() {
+                    notificator.for_each(|iter,_| {
 
                         let now = time::now();
 
@@ -102,15 +102,15 @@ fn main () {
                         }
 
                         for s in &mut src { *s = 0.0; }
-                    }
+                    });
 
                     // receive data from workers, accumulate in src
-                    while let Some((iter, data)) = input2.next() {
-                        notificator.notify_at(&iter);
+                    input2.for_each(|iter, data| {
+                        notificator.notify_at(iter);
                         for &(node, rank) in data.iter() {
                             src[node as usize / peers] += rank;
                         }
-                    }
+                    });
                 });
 
                 // optionally, do process-local accumulation
@@ -123,14 +123,14 @@ fn main () {
                         "aggregation",
                         vec![],
                         move |input, output, iterator| {
-                            while let Some((iter, data)) = input.next() {
-                                iterator.notify_at(&iter);
+                            input.for_each(|iter, data| {
+                                iterator.notify_at(iter);
                                 for &(node, rank) in data.iter() {
                                     acc[node as usize / workers] += rank;
                                 }
-                            }
+                            });
 
-                            while let Some((item, _)) = iterator.next() {
+                            iterator.for_each(|item,_| {
                                 output.session(&item)
                                       .give_iterator(acc.drain(..)
                                                         .enumerate()
@@ -138,7 +138,7 @@ fn main () {
                                                         .map(|(u,f)| ((u * workers + local_index) as u32, f)));
 
                                 for _ in 0..(1 + (nodes/workers)) { acc.push(0.0); }
-                            }
+                            });
                         }
                     );
                 }
@@ -164,7 +164,7 @@ fn main () {
             while root.step() { }
 
             if index == 0 { println!("elapsed: {}", time::precise_time_s() - start); }
-        });
+        }).unwrap();
     }
     else {
         println!("error parsing arguments");
