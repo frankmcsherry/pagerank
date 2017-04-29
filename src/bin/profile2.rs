@@ -11,7 +11,8 @@ use timely::dataflow::*;
 use timely::dataflow::operators::*;
 use timely::dataflow::channels::pact::Exchange;
 
-use timely_sort::LSBRadixSorter as RadixSorter;
+use timely_sort::{RadixSorter, RadixSorterBase};
+use timely_sort::LSBRadixSorter as Sorter;
 
 fn main () {
 
@@ -26,7 +27,7 @@ fn main () {
         let start = time::precise_time_s();
 
         // let mut segments = SegmentList::new(1024); // list of edge segments
-        let mut sorter = RadixSorter::new();
+        let mut sorter = Sorter::new();
 
         let mut src = vec![];   // holds ranks
         let mut deg = vec![];   // holds source degrees
