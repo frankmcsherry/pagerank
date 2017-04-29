@@ -86,7 +86,7 @@ fn main () {
                         if iter.inner == 20 && index == 0 { println!("average: {}", (time::precise_time_s() - going) / 10.0 ); }
 
                         // prepare src for transmitting to destinations
-                        for s in 0..src.len() { src[s] = 0.15 + 0.85 * src[s] / deg[s] as f32; }
+                        for s in 0..src.len() { src[s] = (0.15 + 0.85 * src[s]) / deg[s] as f32; }
 
                         // wander through destinations
                         let mut trn_slice = &trn[..];
@@ -155,7 +155,7 @@ fn main () {
                 for node in 0..graph.nodes() {
                     if node % peers == index {
                         for dst in graph.edges(node) {
-                            input.send((node as u32, *dst as u32));
+                            input.send(((node + 1) as u32, *dst as u32));
                         }
                     }
                 }
