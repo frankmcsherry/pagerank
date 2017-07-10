@@ -5,7 +5,6 @@ extern crate timely;
 use rand::{Rng, SeedableRng, StdRng};
 
 use timely::progress::timestamp::RootTimestamp;
-use timely::dataflow::*;
 use timely::dataflow::operators::*;
 use timely::dataflow::channels::pact::Exchange;
 
@@ -28,7 +27,7 @@ fn main () {
 
         let mut going = start;
 
-        let mut input = root.scoped(|builder| {
+        let mut input = root.dataflow(|builder| {
 
             let (input, graph) = builder.new_input::<(u32, u32)>();
             let (cycle, loopz) = builder.loop_variable::<(u32, f32)>(20, 1);

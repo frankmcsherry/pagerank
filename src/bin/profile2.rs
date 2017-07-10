@@ -7,7 +7,6 @@ extern crate timely_sort;
 use rand::{Rng, SeedableRng, StdRng};
 
 use timely::progress::timestamp::RootTimestamp;
-use timely::dataflow::*;
 use timely::dataflow::operators::*;
 use timely::dataflow::channels::pact::Exchange;
 
@@ -36,7 +35,7 @@ fn main () {
 
         let mut going = start;
 
-        let mut input = root.scoped(|builder| {
+        let mut input = root.dataflow(|builder| {
 
             let (input, edges) = builder.new_input::<(u32, u32)>();
             let (cycle, ranks) = builder.loop_variable::<(u32, f32)>(20, 1);
@@ -56,7 +55,7 @@ fn main () {
                 });
 
                 // all inputs received for iter, commence multiplication
-                notificator.for_each(|iter,_| {
+                notificator.for_each(|iter,_,_| {
 
                     let now = time::now();
 

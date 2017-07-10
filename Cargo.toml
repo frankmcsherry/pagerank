@@ -9,7 +9,7 @@ time = "*"
 mmap="*"
 rand="*"
 byteorder="*"
-timely="0.0.*"
+timely="0.2.0"
 timely_sort="0.1.*"
 
 [profile.release]
