@@ -33,7 +33,7 @@ fn main () {
     if let Ok(matches) = opts.parse(std::env::args().skip(3)) {
 
         let workers: usize = matches.opt_str("w").map(|x| x.parse().unwrap_or(1)).unwrap_or(1);
-        let max_iterations: usize = matches.opt_str("i").map(|x| x.parse().unwrap_or(1)).unwrap_or(20);
+        let max_iterations: usize = matches.opt_str("i").map(|x| x.parse().unwrap()).unwrap_or(20);
         let time_info_interval: usize = 10;
 
         let timely_opt_keys = ["w", "p", "n", "h"];
