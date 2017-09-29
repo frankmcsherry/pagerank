@@ -55,6 +55,12 @@ hostname3$ cargo run --release --bin pagerank -- my-graph -h hosts.txt -n 4 -p 3
 ```
 The inputs must already be present in the working directory on all hosts.
 
+To output the results add the `-o` (or `-output`) option with the output file (TSV). A suffix will be added for the peer (the position can be controlled using `?` in the filename). e.g.:
+
+```bash
+$ cargo run --release --bin pagerank -- my-graph worker -o pagerank-peer-?.tsv
+```
+
 ## Context
 
 We have written [blog](http://www.frankmcsherry.org/pagerank/distributed/performance/2015/07/08/pagerank.html)

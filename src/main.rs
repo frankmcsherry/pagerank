@@ -12,6 +12,8 @@ mod graphmap;
 mod sorting;
 use graphmap::GraphMMap;
 use sorting::{SegmentList, radix_sort_32};
+use std::fs::File;
+use std::io::{BufWriter, Write};
 
 fn main () {
 
@@ -25,11 +27,20 @@ fn main () {
     opts.optopt("n", "processes", "", "");
     opts.optopt("h", "hostfile", "", "");
 
+    opts.optopt("o", "output", "", "");
+
     if let Ok(matches) = opts.parse(std::env::args().skip(3)) {
 
         let workers: usize = matches.opt_str("w").map(|x| x.parse().unwrap_or(1)).unwrap_or(1);
 
-        timely::execute_from_args(std::env::args().skip(2), move |root| {
+        let timely_opt_keys = ["w", "p", "n", "h"];
+        let matches_copy = matches.clone();
+        let timely_args: Vec<String> = timely_opt_keys.into_iter()
+            .filter_map(|k| matches_copy.opt_str(k).map(|x| vec![format!("-{}", k), x]))
+            .flat_map(|x| x)
+            .collect();
+
+        timely::execute_from_args(timely_args.into_iter(), move |root| {
 
             let index = root.index() as usize;
             let peers = root.peers() as usize;
@@ -46,6 +57,10 @@ fn main () {
             let mut trn = vec![];   // holds transposed sources
 
             let mut going = start;
+
+            let peer_output_path = matches.opt_str("o").map(
+                |p| replace_placeholder_or_append_path_suffix(&p, &index.to_string())
+            );
 
             let mut input = root.dataflow(|builder| {
 
@@ -83,6 +98,12 @@ fn main () {
                         if iter.inner == 0  { println!("src: {}, dst: {}, edges: {}", src.len(), rev.len(), trn.len()); }
                         if iter.inner == 10 && index == 0 { going = time::precise_time_s(); }
                         if iter.inner == 20 && index == 0 { println!("average: {}", (time::precise_time_s() - going) / 10.0 ); }
+                        if iter.inner == 20 && peer_output_path.is_some() {
+                            match peer_output_path {
+                                Some(ref path) => write_pagerank_values_to(&path, &src, index, peers, nodes),
+                                None => {}
+                            }
+                        }
 
                         // prepare src for transmitting to destinations
                         for s in 0..src.len() { src[s] = (0.15 + 0.85 * src[s]) / deg[s] as f32; }
@@ -199,4 +220,31 @@ fn transpose(mut edges: Vec<Vec<(u32, u32)>>, peers: usize, nodes: usize) -> (Ve
     }
 
     return (deg, rev, trn);
+}
+
+fn replace_placeholder_or_append_path_suffix(some_path: &str, value: &str) -> String {
+    let result = str::replace(some_path, '?', value);
+    if result != some_path {
+        // its a different path (contained the placeholder), okay
+        return result;
+    }
+    let p = std::path::Path::new(some_path);
+    return format!(
+        "{}_{}{}",
+        p.file_stem().unwrap().to_str().unwrap(),
+        value,
+        p.extension().map(|x| format!(".{}", x.to_str().unwrap())).unwrap_or("".to_string())
+    );
+}
+
+fn write_pagerank_values_to(output_path: &str, values: &Vec<f32>, peer: usize, peers: usize, nodes: usize) {
+    println!("writing {} records to {}", values.len(), output_path);
+    let mut pagerank_writer = BufWriter::new(File::create(output_path).unwrap());
+    pagerank_writer.write("id\tpagerank\n".as_bytes()).unwrap();
+    for i in 0..values.len() {
+        let node_id = peer + i * peers;
+        if node_id < nodes {
+            pagerank_writer.write(format!("{}\t{}\n", node_id, values[i]).as_bytes()).unwrap();
+        }
+    }
 }
