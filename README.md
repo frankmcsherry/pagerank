@@ -61,6 +61,12 @@ To output the results add the `-o` (or `-output`) option with the output file (T
 $ cargo run --release --bin pagerank -- my-graph worker -o pagerank-peer-?.tsv
 ```
 
+The number of iterations can be controlled via the `-i` (or `-max-iterations`) option (default is 20). e.g.:
+
+```bash
+$ cargo run --release --bin pagerank -- my-graph worker -i 100
+```
+
 ## Context
 
 We have written [blog](http://www.frankmcsherry.org/pagerank/distributed/performance/2015/07/08/pagerank.html)

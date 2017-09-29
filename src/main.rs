@@ -28,10 +28,13 @@ fn main () {
     opts.optopt("h", "hostfile", "", "");
 
     opts.optopt("o", "output", "", "");
+    opts.optopt("i", "max-iterations", "", "");
 
     if let Ok(matches) = opts.parse(std::env::args().skip(3)) {
 
         let workers: usize = matches.opt_str("w").map(|x| x.parse().unwrap_or(1)).unwrap_or(1);
+        let max_iterations: usize = matches.opt_str("i").map(|x| x.parse().unwrap()).unwrap_or(20);
+        let time_info_interval: usize = 10;
 
         let timely_opt_keys = ["w", "p", "n", "h"];
         let matches_copy = matches.clone();
@@ -57,6 +60,7 @@ fn main () {
             let mut trn = vec![];   // holds transposed sources
 
             let mut going = start;
+            let mut last_info_iteration = 0;
 
             let peer_output_path = matches.opt_str("o").map(
                 |p| replace_placeholder_or_append_path_suffix(&p, &index.to_string())
@@ -65,7 +69,7 @@ fn main () {
             let mut input = root.dataflow(|builder| {
 
                 let (input, edges) = builder.new_input::<(u32, u32)>();
-                let (cycle, ranks) = builder.loop_variable::<(u32, f32)>(20, 1);
+                let (cycle, ranks) = builder.loop_variable::<(u32, f32)>(max_iterations, 1);
 
                 let mut ranks = edges.binary_notify(&ranks,
                                     Exchange::new(|x: &(u32,u32)| x.0 as u64),
@@ -94,11 +98,18 @@ fn main () {
                             src = vec![0.0f32; deg.len()];
                         }
 
+                        if iter.inner == 0 { println!("src: {}, dst: {}, edges: {}", src.len(), rev.len(), trn.len()); }
+
                         // record some timings in order to estimate per-iteration times
-                        if iter.inner == 0  { println!("src: {}, dst: {}, edges: {}", src.len(), rev.len(), trn.len()); }
-                        if iter.inner == 10 && index == 0 { going = time::precise_time_s(); }
-                        if iter.inner == 20 && index == 0 { println!("average: {}", (time::precise_time_s() - going) / 10.0 ); }
-                        if iter.inner == 20 && peer_output_path.is_some() {
+                        if iter.inner > 0 && index == 0 &&
+                            ((iter.inner % time_info_interval) == 0 || iter.inner == max_iterations) {
+
+                            println!("average: {}", (time::precise_time_s() - going) / (iter.inner - last_info_iteration) as f64);
+                            going = time::precise_time_s();
+                            last_info_iteration = iter.inner;
+                        }
+
+                        if iter.inner == max_iterations && peer_output_path.is_some() {
                             match peer_output_path {
                                 Some(ref path) => write_pagerank_values_to(&path, &src, index, peers, nodes),
                                 None => {}
