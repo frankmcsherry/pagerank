@@ -229,7 +229,12 @@ fn replace_placeholder_or_append_path_suffix(some_path: &str, value: &str) -> St
         return result;
     }
     let p = std::path::Path::new(some_path);
-    return format!("{:?}_{}{:?}", p.file_stem().unwrap(), value, p.extension().unwrap());
+    return format!(
+        "{}_{}{}",
+        p.file_stem().unwrap().to_str().unwrap(),
+        value,
+        p.extension().map(|x| format!(".{}", x.to_str().unwrap())).unwrap_or("".to_string())
+    );
 }
 
 fn write_pagerank_values_to(output_path: &str, values: &Vec<f32>, peer: usize, peers: usize, nodes: usize) {
