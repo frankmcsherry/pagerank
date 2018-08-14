@@ -5,7 +5,7 @@ extern crate timely;
 use rand::{Rng, SeedableRng, StdRng};
 
 use timely::progress::timestamp::RootTimestamp;
-use timely::dataflow::operators::*;
+use timely::dataflow::operators::{Input, Operator, LoopVariable, ConnectLoop};
 use timely::dataflow::channels::pact::Exchange;
 
 fn main () {
@@ -41,7 +41,7 @@ fn main () {
 
                 // receive incoming edges (should only be iter 0)
                 input1.for_each(|_iter, data| {
-                    for (src,dst) in data.drain(..) {
+                    for &(src,dst) in data.iter() {
                         degrs[src as usize / peers] += 1;
                         edges.push((src / (peers as u32),dst));
                     }
@@ -71,7 +71,7 @@ fn main () {
 
                 // receive data from workers, accumulate in src
                 input2.for_each(|iter, data| {
-                    notificator.notify_at(iter);
+                    notificator.notify_at(iter.retain());
                     for &(node, rank) in data.iter() {
                         unsafe { *ranks.get_unchecked_mut(node as usize / peers) += rank; }
                     }
@@ -88,5 +88,5 @@ fn main () {
         for _index in 0..(edge_cnt / peers) {
             input.send((rng.gen_range(0, node_cnt as u32), rng.gen_range(0, node_cnt as u32)));
         }
-    }).unwrap(); 
+    }).unwrap();
 }

@@ -7,7 +7,7 @@ extern crate timely_sort;
 use rand::{Rng, SeedableRng, StdRng};
 
 use timely::progress::timestamp::RootTimestamp;
-use timely::dataflow::operators::*;
+use timely::dataflow::operators::{Input, Operator, LoopVariable, ConnectLoop};
 use timely::dataflow::channels::pact::Exchange;
 
 use timely_sort::{RadixSorter, RadixSorterBase};
@@ -49,7 +49,7 @@ fn main () {
 
                 // receive incoming edges (should only be iter 0)
                 input1.for_each(|_iter, data| {
-                    for (src,dst) in data.drain(..) {
+                    for &(src,dst) in data.iter() {
                         sorter.push((src,dst), &|&(_,d)| d);
                     }
                 });
@@ -97,7 +97,7 @@ fn main () {
 
                 // receive data from workers, accumulate in src
                 input2.for_each(|iter, data| {
-                    notificator.notify_at(iter);
+                    notificator.notify_at(iter.retain());
                     for &(node, rank) in data.iter() {
                         src[node as usize / peers] += rank;
                     }
