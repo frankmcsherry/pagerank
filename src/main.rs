@@ -136,12 +136,26 @@ fn main () {
                     });
 
                     // receive data from workers, accumulate in src
-                    input2.for_each(|iter, data| {
-                        notificator.notify_at(iter.retain());
-                        for &(node, rank) in data.iter() {
-                            src[node as usize / peers] += rank;
+                    if peers & (peers - 1) > 0 {
+                        input2.for_each(|iter, data| {
+                            notificator.notify_at(iter.retain());
+                            for &(node, rank) in data.iter() {
+                                src[node as usize / peers] += rank;
+                            }
+                        });
+                    }
+                    else {
+                        let mut shift = 0;
+                        while (1 << shift) != peers {
+                            shift += 1;
                         }
-                    });
+                        input2.for_each(|iter, data| {
+                            notificator.notify_at(iter.retain());
+                            for &(node, rank) in data.iter() {
+                                src[(node as usize) >> shift] += rank;
+                            }
+                        });
+                    }
                 });
 
                 // optionally, do process-local accumulation
@@ -186,7 +200,7 @@ fn main () {
                 for node in 0..graph.nodes() {
                     if node % peers == index {
                         for dst in graph.edges(node) {
-                            input.send(((node + 1) as u32, *dst as u32));
+                            input.send((node as u32, *dst as u32));
                         }
                     }
                 }
