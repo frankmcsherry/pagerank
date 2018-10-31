@@ -9,8 +9,7 @@ time = "*"
 mmap="*"
 rand="*"
 byteorder="*"
-#timely="0.3.0"
-timely = { git = "https://github.com/frankmcsherry/timely-dataflow" , branch = "dataplane_mockup" }
+timely = "0.7"
 timely_sort="0.1.*"
 
 [profile.release]
