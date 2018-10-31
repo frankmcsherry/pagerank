@@ -3,8 +3,7 @@ extern crate time;
 extern crate timely;
 extern crate getopts;
 
-use timely::progress::timestamp::RootTimestamp;
-use timely::dataflow::operators::{Input, Operator, LoopVariable, ConnectLoop};
+use timely::dataflow::operators::{Input, Operator, Feedback, ConnectLoop};
 use timely::dataflow::channels::pact::Exchange;
 
 mod typedrw;
@@ -66,16 +65,16 @@ fn main () {
                 |p| replace_placeholder_or_append_path_suffix(&p, &index.to_string())
             );
 
-            let mut input = root.dataflow(|builder| {
+            let mut input = root.dataflow::<usize,_,_>(|builder| {
 
                 let (input, edges) = builder.new_input::<(u32, u32)>();
-                let (cycle, ranks) = builder.loop_variable::<(u32, f32)>(max_iterations, 1);
+                let (cycle, ranks) = builder.feedback::<(u32, f32)>(1);
 
                 let mut ranks = edges.binary_notify(&ranks,
                                     Exchange::new(|x: &(u32,u32)| x.0 as u64),
                                     Exchange::new(|x: &(u32,f32)| x.0 as u64),
                                     "pagerank",
-                                    vec![RootTimestamp::new(0)],
+                                    vec![0],
                                     move |input1, input2, output, notificator| {
 
                     // receive incoming edges (should only be iter 0)
@@ -86,30 +85,32 @@ fn main () {
                     // all inputs received for iter, commence multiplication
                     notificator.for_each(|iter,_,_| {
 
+                        let iteration = *iter.time();
+
                         let now = time::now();
 
-                        if index == 0 { println!("{}:{}:{}.{} starting iteration {}", now.tm_hour, now.tm_min, now.tm_sec, now.tm_nsec, iter.inner); }
+                        if index == 0 { println!("{}:{}:{}.{} starting iteration {}", now.tm_hour, now.tm_min, now.tm_sec, now.tm_nsec, iteration); }
 
                         // if the very first iteration, prepare some stuff.
                         // specifically, transpose edges and sort by destination.
-                        if iter.inner == 0 {
+                        if iteration == 0 {
                             let (a, b, c) = transpose(segments.finalize(), peers, nodes);
                             deg = a; rev = b; trn = c;
                             src = vec![0.0f32; deg.len()];
                         }
 
-                        if iter.inner == 0 { println!("src: {}, dst: {}, edges: {}", src.len(), rev.len(), trn.len()); }
+                        if iteration == 0 { println!("src: {}, dst: {}, edges: {}", src.len(), rev.len(), trn.len()); }
 
                         // record some timings in order to estimate per-iteration times
-                        if iter.inner > 0 && index == 0 &&
-                            ((iter.inner % time_info_interval) == 0 || iter.inner == max_iterations) {
+                        if iteration > 0 && index == 0 &&
+                            ((iteration % time_info_interval) == 0 || iteration == max_iterations) {
 
-                            println!("average: {}", (time::precise_time_s() - going) / (iter.inner - last_info_iteration) as f64);
+                            println!("average: {}", (time::precise_time_s() - going) / (iteration - last_info_iteration) as f64);
                             going = time::precise_time_s();
-                            last_info_iteration = iter.inner;
+                            last_info_iteration = iteration;
                         }
 
-                        if iter.inner == max_iterations && peer_output_path.is_some() {
+                        if iteration == max_iterations && peer_output_path.is_some() {
                             match peer_output_path {
                                 Some(ref path) => write_pagerank_values_to(&path, &src, index, peers, nodes),
                                 None => {}
