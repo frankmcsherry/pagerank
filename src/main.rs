@@ -4,7 +4,7 @@ extern crate timely;
 extern crate getopts;
 
 use timely::progress::timestamp::RootTimestamp;
-use timely::dataflow::operators::*;
+use timely::dataflow::operators::{Input, Operator, LoopVariable, ConnectLoop};
 use timely::dataflow::channels::pact::Exchange;
 
 mod typedrw;
@@ -80,7 +80,7 @@ fn main () {
 
                     // receive incoming edges (should only be iter 0)
                     input1.for_each(|_iter, data| {
-                        segments.push(data.drain(..));
+                        segments.push(data.iter().cloned());
                     });
 
                     // all inputs received for iter, commence multiplication
@@ -136,12 +136,26 @@ fn main () {
                     });
 
                     // receive data from workers, accumulate in src
-                    input2.for_each(|iter, data| {
-                        notificator.notify_at(iter);
-                        for &(node, rank) in data.iter() {
-                            src[node as usize / peers] += rank;
+                    if peers & (peers - 1) > 0 {
+                        input2.for_each(|iter, data| {
+                            notificator.notify_at(iter.retain());
+                            for &(node, rank) in data.iter() {
+                                src[node as usize / peers] += rank;
+                            }
+                        });
+                    }
+                    else {
+                        let mut shift = 0;
+                        while (1 << shift) != peers {
+                            shift += 1;
                         }
-                    });
+                        input2.for_each(|iter, data| {
+                            notificator.notify_at(iter.retain());
+                            for &(node, rank) in data.iter() {
+                                src[(node as usize) >> shift] += rank;
+                            }
+                        });
+                    }
                 });
 
                 // optionally, do process-local accumulation
@@ -155,7 +169,7 @@ fn main () {
                         vec![],
                         move |input, output, iterator| {
                             input.for_each(|iter, data| {
-                                iterator.notify_at(iter);
+                                iterator.notify_at(iter.retain());
                                 for &(node, rank) in data.iter() {
                                     acc[node as usize / workers] += rank;
                                 }
@@ -186,7 +200,7 @@ fn main () {
                 for node in 0..graph.nodes() {
                     if node % peers == index {
                         for dst in graph.edges(node) {
-                            input.send(((node + 1) as u32, *dst as u32));
+                            input.send((node as u32, *dst as u32));
                         }
                     }
                 }
